@@ -20,7 +20,8 @@
       },
       'Release': {
         'defines': [ 'NDEBUG' ],
-        'cflags': [ '-flto' ],
+        'cflags': [ '-flto=thin', '-O2', ],
+        'ldflags': [ '-fuse-ld=lld' ],
         'xcode_settings': {
           'LLVM_LTO': 'YES'
         },
