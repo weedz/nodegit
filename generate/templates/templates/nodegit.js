@@ -1,4 +1,4 @@
-var _ = require("lodash");
+// var _ = require("lodash");
 var util = require("util");
 var worker;
 
@@ -28,7 +28,8 @@ var promisify = fn => fn && util.promisify(fn); // jshint ignore:line
 // https://github.com/facebook/jest/issues/3552
 // https://github.com/facebook/jest/issues/3550
 // https://github.com/nodejs/node/issues/5016
-rawApi = _.cloneDeep(rawApi);
+// TODO: Replace this?
+// rawApi = _.cloneDeep(rawApi);
 
 // Native methods do not return an identifiable function, so we
 // have to override them here
