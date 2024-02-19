@@ -1,16 +1,12 @@
 import crypto from "crypto";
 import execPromise from "./execPromise.js";
-import got from "got";
 import path from "path";
 import stream from "stream";
+import { pipeline } from "stream/promises";
 import tar from "tar-fs";
 import zlib from "zlib";
 import { createWriteStream, promises as fs } from "fs";
 import { performance } from "perf_hooks";
-import { fileURLToPath } from 'url';
-import { promisify } from "util";
-
-const pipeline = promisify(stream.pipeline);
 
 import packageJson from '../package.json' with { type: "json" };
 
@@ -65,7 +61,7 @@ const applyOpenSSLPatches = async (buildCwd, operatingSystem) => {
         }, { pipeOutput: true });
       }
     }
-  } catch(e) {
+  } catch (e) {
     console.log("Patch application failed: ", e);
     throw e;
   }
@@ -162,9 +158,8 @@ const buildWin32 = async (buildCwd, vsBuildArch) => {
   const programFilesPath = (process.arch === "x64"
     ? process.env["ProgramFiles(x86)"]
     : process.env.ProgramFiles) || "C:\\Program Files";
-  const vcvarsallPath = process.env.npm_config_vcvarsall_path || `${
-    programFilesPath
-  }\\Microsoft Visual Studio\\2017\\BuildTools\\VC\\Auxiliary\\Build\\vcvarsall.bat`;
+  const vcvarsallPath = process.env.npm_config_vcvarsall_path || `${programFilesPath
+    }\\Microsoft Visual Studio\\2017\\BuildTools\\VC\\Auxiliary\\Build\\vcvarsall.bat`;
   try {
     await fs.stat(vcvarsallPath);
   } catch {
@@ -182,7 +177,7 @@ const buildWin32 = async (buildCwd, vsBuildArch) => {
       vcTarget = "VC-WIN32";
       break;
     }
-      
+
     default: {
       throw new Error(`Unknown vsBuildArch: ${vsBuildArch}`);
     }
@@ -222,16 +217,21 @@ const removeOpenSSLIfOudated = async (openSSLVersion) => {
   }
 };
 
-const makeOnStreamDownloadProgress = () => {
-  let lastReport = performance.now();
-  return ({ percent, transferred, total }) => {
+function makeStreamDownloadProgress(readableStream, totalSize) {
+  let lastReport = 0;
+  let bytesRead = 0;
+
+  readableStream.addListener("data", (data) => {
+    bytesRead += data.byteLength;
+
     const currentTime = performance.now();
     if (currentTime - lastReport > 1 * 1000) {
+      const percent = (bytesRead / totalSize) * 100;
+      console.log(`progress: ${bytesRead}/${totalSize} (${percent.toFixed(2)}%)`);
       lastReport = currentTime;
-      console.log(`progress: ${transferred}/${total} (${(percent * 100).toFixed(2)}%)`)
     }
-  };
-};
+  });
+}
 
 const buildOpenSSLIfNecessary = async ({
   macOsDeploymentTarget,
@@ -254,15 +254,19 @@ const buildOpenSSLIfNecessary = async ({
     await fs.stat(extractPath);
     console.log("Skipping OpenSSL build, dir exists");
     return;
-  } catch {}
+  } catch { }
 
   const openSSLUrl = getOpenSSLSourceUrl(openSSLVersion);
   const openSSLSha256Url = getOpenSSLSourceSha256Url(openSSLVersion);
 
-  const openSSLSha256 = (await got(openSSLSha256Url)).body.trim();
+  const openSSLSha256 = await fetch(openSSLSha256Url)
+    .then(response => response.text())
+    .then(body => body.trim());
 
-  const downloadStream = got.stream(openSSLUrl);
-  downloadStream.on("downloadProgress", makeOnStreamDownloadProgress());
+  const downloadResponse = await fetch(openSSLUrl);
+  const totalSize = Number.parseInt(downloadResponse.headers.get("content-length"), 10) || 0;
+  const downloadStream = stream.Readable.fromWeb(downloadResponse.body);
+  makeStreamDownloadProgress(downloadStream, totalSize);
 
   await pipeline(
     downloadStream,
@@ -307,14 +311,17 @@ const downloadOpenSSLIfNecessary = async ({
     await fs.stat(extractPath);
     console.log("Skipping OpenSSL download, dir exists");
     return;
-  } catch {}
-  
+  } catch { }
   if (maybeDownloadSha256Url) {
-    maybeDownloadSha256 = (await got(maybeDownloadSha256Url)).body.trim();
+    maybeDownloadSha256 = await fetch(maybeDownloadSha256Url)
+      .then(response => response.text())
+      .then(body => body.trim());
   }
 
-  const downloadStream = got.stream(downloadBinUrl);
-  downloadStream.on("downloadProgress", makeOnStreamDownloadProgress());
+  const downloadResponse = await fetch(downloadBinUrl);
+  const totalSize = Number.parseInt(downloadResponse.headers.get("content-length"), 10) || 0;
+  const downloadStream = stream.Readable.fromWeb(downloadResponse.body);
+  makeStreamDownloadProgress(downloadStream, totalSize);
 
   const pipelineSteps = [
     downloadStream,
@@ -424,7 +431,7 @@ if (process.argv[1] === import.meta.filename) {
   try {
     await acquireOpenSSL();
   }
-  catch(error) {
+  catch (error) {
     console.error("Acquire OpenSSL failed: ", error);
     process.exit(1);
   };
