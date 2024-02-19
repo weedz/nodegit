@@ -1,18 +1,14 @@
 const crypto = require("crypto");
 const execPromise = require("./execPromise");
-// for fs.remove. replace with fs.rm after dropping v12 support
-const fse = require("fs-extra");
 const fsNonPromise = require("fs");
-const { promises: fs } = fsNonPromise;
+const fs = require("fs/promises");
 const path = require("path");
-const got = require("got");
 const { performance } = require("perf_hooks");
-const { promisify } = require("util");
 const stream = require("stream");
 const tar = require("tar-fs");
 const zlib = require("zlib");
 
-const pipeline = promisify(stream.pipeline);
+const { pipeline } = require("stream/promises");
 
 const packageJson = require('../package.json')
 
@@ -25,7 +21,6 @@ const extractPath = path.join(vendorPath, "openssl");
 const pathsToIncludeForPackage = [
   "include", "lib"
 ];
-
 const getOpenSSLSourceUrl = (version) => `https://www.openssl.org/source/openssl-${version}.tar.gz`;
 const getOpenSSLSourceSha256Url = (version) => `${getOpenSSLSourceUrl(version)}.sha256`;
 
@@ -58,7 +53,7 @@ const makeHashVerifyOnFinal = (expected) => (digest) => {
 // currently this only needs to be done on linux
 const applyOpenSSLPatches = async (buildCwd, operatingSystem) => {
   try {
-    for (const patchFilename of await fse.readdir(opensslPatchPath)) {
+    for (const patchFilename of await fs.readdir(opensslPatchPath)) {
       const patchTarget = patchFilename.split("-")[1];
       if (patchFilename.split(".").pop() === "patch" && (patchTarget === operatingSystem || patchTarget === "all")) {
         console.log(`applying ${patchFilename}`);
@@ -67,7 +62,7 @@ const applyOpenSSLPatches = async (buildCwd, operatingSystem) => {
         }, { pipeOutput: true });
       }
     }
-  } catch(e) {
+  } catch (e) {
     console.log("Patch application failed: ", e);
     throw e;
   }
@@ -164,9 +159,8 @@ const buildWin32 = async (buildCwd, vsBuildArch) => {
   const programFilesPath = (process.arch === "x64"
     ? process.env["ProgramFiles(x86)"]
     : process.env.ProgramFiles) || "C:\\Program Files";
-  const vcvarsallPath = process.env.npm_config_vcvarsall_path || `${
-    programFilesPath
-  }\\Microsoft Visual Studio\\2017\\BuildTools\\VC\\Auxiliary\\Build\\vcvarsall.bat`;
+  const vcvarsallPath = process.env.npm_config_vcvarsall_path || `${programFilesPath
+    }\\Microsoft Visual Studio\\2017\\BuildTools\\VC\\Auxiliary\\Build\\vcvarsall.bat`;
   try {
     await fs.stat(vcvarsallPath);
   } catch {
@@ -184,7 +178,7 @@ const buildWin32 = async (buildCwd, vsBuildArch) => {
       vcTarget = "VC-WIN32";
       break;
     }
-      
+
     default: {
       throw new Error(`Unknown vsBuildArch: ${vsBuildArch}`);
     }
@@ -217,23 +211,28 @@ const removeOpenSSLIfOudated = async (openSSLVersion) => {
     }
 
     console.log("Removing outdated OpenSSL at: ", extractPath);
-    await fse.remove(extractPath);
+    await fs.rm(extractPath);
     console.log("Outdated OpenSSL removed.");
   } catch (err) {
     console.log("Remove outdated OpenSSL failed: ", err);
   }
 };
 
-const makeOnStreamDownloadProgress = () => {
-  let lastReport = performance.now();
-  return ({ percent, transferred, total }) => {
+function makeStreamDownloadProgress(readableStream, totalSize) {
+  let lastReport = 0;
+  let bytesRead = 0;
+
+  readableStream.addListener("data", (data) => {
+    bytesRead += data.byteLength;
+
     const currentTime = performance.now();
-    if (currentTime - lastReport > 1 * 1000) {
+    if (currentTime - lastReport >= 1000) {
+      const percent = (bytesRead / totalSize) * 100;
+      console.log(`progress: ${bytesRead}/${totalSize} (${percent.toFixed(2)}%)`);
       lastReport = currentTime;
-      console.log(`progress: ${transferred}/${total} (${(percent * 100).toFixed(2)}%)`)
     }
-  };
-};
+  });
+}
 
 const buildOpenSSLIfNecessary = async ({
   macOsDeploymentTarget,
@@ -256,15 +255,19 @@ const buildOpenSSLIfNecessary = async ({
     await fs.stat(extractPath);
     console.log("Skipping OpenSSL build, dir exists");
     return;
-  } catch {}
+  } catch { }
 
   const openSSLUrl = getOpenSSLSourceUrl(openSSLVersion);
   const openSSLSha256Url = getOpenSSLSourceSha256Url(openSSLVersion);
 
-  const openSSLSha256 = (await got(openSSLSha256Url)).body.trim();
+  const openSSLSha256 = await fetch(openSSLSha256Url)
+    .then(response => response.text())
+    .then(body => body.trim());
 
-  const downloadStream = got.stream(openSSLUrl);
-  downloadStream.on("downloadProgress", makeOnStreamDownloadProgress());
+  const downloadResponse = await fetch(openSSLUrl);
+  const totalSize = Number.parseInt(downloadResponse.headers.get("content-length"), 10) || 0;
+  const downloadStream = stream.Readable.fromWeb(downloadResponse.body);
+  makeStreamDownloadProgress(downloadStream, totalSize);
 
   await pipeline(
     downloadStream,
@@ -309,14 +312,17 @@ const downloadOpenSSLIfNecessary = async ({
     await fs.stat(extractPath);
     console.log("Skipping OpenSSL download, dir exists");
     return;
-  } catch {}
-  
+  } catch { }
   if (maybeDownloadSha256Url) {
-    maybeDownloadSha256 = (await got(maybeDownloadSha256Url)).body.trim();
+    maybeDownloadSha256 = await fetch(maybeDownloadSha256Url)
+      .then(response => response.text())
+      .then(body => body.trim());
   }
 
-  const downloadStream = got.stream(downloadBinUrl);
-  downloadStream.on("downloadProgress", makeOnStreamDownloadProgress());
+  const downloadResponse = await fetch(downloadBinUrl);
+  const totalSize = Number.parseInt(downloadResponse.headers.get("content-length"), 10) || 0;
+  const downloadStream = stream.Readable.fromWeb(downloadResponse.body);
+  makeStreamDownloadProgress(downloadStream, totalSize);
 
   const pipelineSteps = [
     downloadStream,
@@ -361,8 +367,8 @@ const buildPackage = async () => {
         return path.extname(name) === ".pc"
           || path.basename(name) === "pkgconfig";
       },
-      dmode: 0755,
-      fmode: 0644
+      dmode: 0o755,
+      fmode: 0o644
     }),
     zlib.createGzip(),
     new HashVerify("sha256", (digest) => {
