@@ -1,9 +1,9 @@
 /.travis/
 /build/
 /examples/
-/generate/
+#/generate/
 /guides/
-/lib/
+#/lib/
 /test/
 /vendor/Release/
 
