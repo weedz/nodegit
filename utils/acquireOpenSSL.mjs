@@ -1,18 +1,14 @@
 import crypto from "crypto";
 import { spawn } from "child_process";
 import execPromise from "./execPromise.js";
-import got from "got";
 import path from "path";
 import stream from "stream";
+import { pipeline } from "stream/promises";
 import tar from "tar-fs";
 import zlib from "zlib";
 import { createWriteStream, promises as fs } from "fs";
 import { performance } from "perf_hooks";
-import { promisify } from "util";
-
 import { hostArch, targetArch } from "./buildFlags.js";
-
-const pipeline = promisify(stream.pipeline);
 
 import packageJson from '../package.json' with { type: "json" };
 
@@ -54,7 +50,7 @@ const makeHashVerifyOnFinal = (expected) => (digest) => {
   const digestOk = digest === expected;
   return digestOk
     ? null
-    : new Error(`Digest not OK: ${digest} !== ${this.expected}`);
+    : new Error(`Digest not OK: ${digest} !== ${expected}`);
 };
 
 // currently this only needs to be done on linux
@@ -71,7 +67,7 @@ const applyOpenSSLPatches = async (buildCwd, operatingSystem) => {
         }, { pipeOutput: true });
       }
     }
-  } catch(e) {
+  } catch (e) {
     if (e.code === "ENOENT") {
       // no patches to apply
       return;
@@ -194,14 +190,14 @@ const buildWin32 = async (buildCwd) => {
 
       return possiblePaths;
     }
-    
+
     if (process.env["ProgramFiles(x86)"]) {
-      const parentPath  = path.join(process.env["ProgramFiles(x86)"], 'Microsoft Visual Studio');
+      const parentPath = path.join(process.env["ProgramFiles(x86)"], 'Microsoft Visual Studio');
       potentialMsvsPaths.push(...computePossiblePaths(parentPath));
     }
 
     if (process.env.ProgramFiles) {
-      const parentPath  = path.join(process.env.ProgramFiles, 'Microsoft Visual Studio');
+      const parentPath = path.join(process.env.ProgramFiles, 'Microsoft Visual Studio');
       potentialMsvsPaths.push(...computePossiblePaths(parentPath));
     }
 
@@ -269,7 +265,7 @@ const buildWin32 = async (buildCwd) => {
     });
   });
 
-  
+
 };
 
 const removeOpenSSLIfOudated = async (openSSLVersion) => {
@@ -300,16 +296,21 @@ const removeOpenSSLIfOudated = async (openSSLVersion) => {
   }
 };
 
-const makeOnStreamDownloadProgress = () => {
-  let lastReport = performance.now();
-  return ({ percent, transferred, total }) => {
+function makeStreamDownloadProgress(readableStream, totalSize) {
+  let lastReport = 0;
+  let bytesRead = 0;
+
+  readableStream.addListener("data", (data) => {
+    bytesRead += data.byteLength;
+
     const currentTime = performance.now();
     if (currentTime - lastReport > 1 * 1000) {
+      const percent = totalSize !== 0 ? (bytesRead / totalSize) * 100 : 0;
+      console.log(`progress: ${bytesRead}/${totalSize} (${percent.toFixed(2)}%)`);
       lastReport = currentTime;
-      console.log(`progress: ${transferred}/${total} (${(percent * 100).toFixed(2)}%)`)
     }
-  };
-};
+  });
+}
 
 const buildOpenSSLIfNecessary = async ({
   macOsDeploymentTarget,
@@ -326,15 +327,25 @@ const buildOpenSSLIfNecessary = async ({
     await fs.stat(extractPath);
     console.log("Skipping OpenSSL build, dir exists");
     return;
-  } catch {}
+  } catch { }
 
   const openSSLUrl = getOpenSSLSourceUrl(openSSLVersion);
   const openSSLSha256Url = getOpenSSLSourceSha256Url(openSSLVersion);
 
-  const openSSLSha256 = (await got(openSSLSha256Url)).body.trim().split(' ')[0];
+  const openSSLSha256urlText = await fetch(openSSLSha256Url)
+    .then(response => response.text())
+    .then(body => body.trim());
 
-  const downloadStream = got.stream(openSSLUrl);
-  downloadStream.on("downloadProgress", makeOnStreamDownloadProgress());
+  // openSSLSha256Url returns a string like "d80c34f5cf902dccf1f1b5df5ebb86d0392e37049e5d73df1b3abae72e4ffe8b *openssl-3.0.18.tar.gz"
+  const openSSLSha256 = openSSLSha256urlText.split(" ")[0];
+
+  const downloadResponse = await fetch(openSSLUrl);
+  if (!downloadResponse.ok) {
+    throw new Error(`Invalid response from: ${openSSLSha256urlText}, code: ${downloadResponse.status}`);
+  }
+  const totalSize = Number.parseInt(downloadResponse.headers.get("content-length"), 10) || 0;
+  const downloadStream = stream.Readable.fromWeb(downloadResponse.body);
+  makeStreamDownloadProgress(downloadStream, totalSize);
 
   await pipeline(
     downloadStream,
@@ -374,14 +385,20 @@ const downloadOpenSSLIfNecessary = async ({
     await fs.stat(extractPath);
     console.log("Skipping OpenSSL download, dir exists");
     return;
-  } catch {}
-  
+  } catch { }
   if (maybeDownloadSha256Url) {
-    maybeDownloadSha256 = (await got(maybeDownloadSha256Url)).body.trim();
+    maybeDownloadSha256 = await fetch(maybeDownloadSha256Url)
+      .then(response => response.text())
+      .then(body => body.trim());
   }
 
-  const downloadStream = got.stream(downloadBinUrl);
-  downloadStream.on("downloadProgress", makeOnStreamDownloadProgress());
+  const downloadResponse = await fetch(downloadBinUrl);
+  if (!downloadResponse.ok) {
+    throw new Error(`Invalid response from: ${openSSLSha256urlText}, code: ${downloadResponse.status}`);
+  }
+  const totalSize = Number.parseInt(downloadResponse.headers.get("content-length"), 10) || 0;
+  const downloadStream = stream.Readable.fromWeb(downloadResponse.body);
+  makeStreamDownloadProgress(downloadStream, totalSize);
 
   const pipelineSteps = [
     downloadStream,
@@ -481,7 +498,7 @@ if (process.argv[1] === import.meta.filename) {
   try {
     await acquireOpenSSL();
   }
-  catch(error) {
+  catch (error) {
     console.error("Acquire OpenSSL failed: ", error);
     process.exit(1);
   }

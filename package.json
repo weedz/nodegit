@@ -37,26 +37,18 @@
   "engines": {
     "node": ">= 20"
   },
-  "dependencies": {
-    "@mapbox/node-pre-gyp": "^2.0.0",
-    "fs-extra": "^7.0.0",
-    "got": "^14.4.7",
-    "json5": "^2.1.0",
-    "lodash": "^4.17.14",
-    "nan": "^2.23.1",
-    "node-gyp": "^11.2.0",
-    "tar-fs": "^3.0.9"
-  },
   "devDependencies": {
-    "aws-sdk": "^2.1095.0",
-    "clean-for-publish": "~1.0.2",
-    "combyne": "~0.8.1",
-    "js-beautify": "~1.5.10",
-    "jshint": "^2.10.0",
-    "lcov-result-merger": "^3.1.0",
-    "mocha": "^11.4.0",
-    "nyc": "^17.1.0",
-    "walk": "^2.3.9"
+    "combyne": "^2.0.0",
+    "fs-extra": "^11.3.1",
+    "js-beautify": "^1.15.4",
+    "json5": "^2.2.3",
+    "lodash": "^4.17.21",
+    "nan": "^2.23.0",
+    "node-gyp": "^12.1.0",
+    "tar-fs": "^3.1.0"
+  },
+  "resolutions": {
+    "make-fetch-happen": "^13"
   },
   "binary": {
     "bucket_name": "axonodegit",
@@ -71,18 +63,13 @@
     "generateJson": "node generate/scripts/generateJson",
     "generateMissingTests": "node generate/scripts/generateMissingTests",
     "generateNativeCode": "node generate/scripts/generateNativeCode",
-    "install": "node lifecycleScripts/preinstall && node lifecycleScripts/install",
-    "installDebug": "BUILD_DEBUG=true npm install",
-    "lint": "jshint lib test/tests test/utils lifecycleScripts",
     "mergecov": "lcov-result-merger 'test/**/*.info' 'test/coverage/merged.lcov' && ./lcov-1.10/bin/genhtml test/coverage/merged.lcov --output-directory test/coverage/report",
-    "mocha": "mocha --expose-gc test/runner test/tests --timeout 15000",
-    "mochaDebug": "mocha --expose-gc --inspect-brk test/runner test/tests --timeout 15000",
-    "postinstall": "node lifecycleScripts/postinstall",
-    "rebuild": "node generate && node-gyp configure build",
+    "rebuild": "node generate && CC=clang CXX=clang++ LINK=clang++ node-gyp configure build",
     "rebuildDebug": "node generate && node-gyp configure --debug build",
     "recompile": "node-gyp configure build",
     "recompileDebug": "node-gyp configure --debug build",
     "test": "npm run lint && node --expose-gc test",
     "xcodeDebug": "node-gyp configure -- -f xcode"
-  }
+  },
+  "packageManager": "pnpm@10.24.0+sha512.01ff8ae71b4419903b65c60fb2dc9d34cf8bb6e06d03bde112ef38f7a34d6904c424ba66bea5cdcf12890230bf39f9580473140ed9c946fef328b6e5238a345a"
 }
