@@ -5,7 +5,6 @@ const fse = require("fs-extra");
 const fsNonPromise = require("fs");
 const { promises: fs } = fsNonPromise;
 const path = require("path");
-const got = require("got");
 const { performance } = require("perf_hooks");
 const { promisify } = require("util");
 const stream = require("stream");
@@ -67,7 +66,7 @@ const applyOpenSSLPatches = async (buildCwd, operatingSystem) => {
         }, { pipeOutput: true });
       }
     }
-  } catch(e) {
+  } catch (e) {
     console.log("Patch application failed: ", e);
     throw e;
   }
@@ -164,9 +163,8 @@ const buildWin32 = async (buildCwd, vsBuildArch) => {
   const programFilesPath = (process.arch === "x64"
     ? process.env["ProgramFiles(x86)"]
     : process.env.ProgramFiles) || "C:\\Program Files";
-  const vcvarsallPath = process.env.npm_config_vcvarsall_path || `${
-    programFilesPath
-  }\\Microsoft Visual Studio\\2017\\BuildTools\\VC\\Auxiliary\\Build\\vcvarsall.bat`;
+  const vcvarsallPath = process.env.npm_config_vcvarsall_path || `${programFilesPath
+    }\\Microsoft Visual Studio\\2017\\BuildTools\\VC\\Auxiliary\\Build\\vcvarsall.bat`;
   try {
     await fs.stat(vcvarsallPath);
   } catch {
@@ -184,7 +182,7 @@ const buildWin32 = async (buildCwd, vsBuildArch) => {
       vcTarget = "VC-WIN32";
       break;
     }
-      
+
     default: {
       throw new Error(`Unknown vsBuildArch: ${vsBuildArch}`);
     }
@@ -256,12 +254,13 @@ const buildOpenSSLIfNecessary = async ({
     await fs.stat(extractPath);
     console.log("Skipping OpenSSL build, dir exists");
     return;
-  } catch {}
+  } catch { }
 
   const openSSLUrl = getOpenSSLSourceUrl(openSSLVersion);
   const openSSLSha256Url = getOpenSSLSourceSha256Url(openSSLVersion);
 
-  const openSSLSha256 = (await got(openSSLSha256Url)).body.trim();
+  const got = (await import("got")).default;
+  const openSSLSha256 = (await got.get(openSSLSha256Url)).body.trim();
 
   const downloadStream = got.stream(openSSLUrl);
   downloadStream.on("downloadProgress", makeOnStreamDownloadProgress());
@@ -309,8 +308,9 @@ const downloadOpenSSLIfNecessary = async ({
     await fs.stat(extractPath);
     console.log("Skipping OpenSSL download, dir exists");
     return;
-  } catch {}
-  
+  } catch { }
+  const got = (await import("got")).default;
+
   if (maybeDownloadSha256Url) {
     maybeDownloadSha256 = (await got(maybeDownloadSha256Url)).body.trim();
   }
@@ -361,8 +361,8 @@ const buildPackage = async () => {
         return path.extname(name) === ".pc"
           || path.basename(name) === "pkgconfig";
       },
-      dmode: 0755,
-      fmode: 0644
+      dmode: 0o755,
+      fmode: 0o644
     }),
     zlib.createGzip(),
     new HashVerify("sha256", (digest) => {
