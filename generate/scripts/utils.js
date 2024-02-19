@@ -1,5 +1,4 @@
 const fse = require("fs-extra");
-const walk = require("walk");
 const _ = require('lodash');
 
 const fs = require("fs");
@@ -13,11 +12,11 @@ var util = {
   pointerRegex: /\s*\*\s*/,
   doublePointerRegex: /\s*\*\*\s*/,
 
-  readLocalFile: function(filePath) {
+  readLocalFile: function (filePath) {
     return util.readFile(local(filePath));
   },
 
-  readFile: function(filePath) {
+  readFile: function (filePath) {
     try {
       return fs.readFileSync(filePath).toString();
     }
@@ -26,11 +25,11 @@ var util = {
     }
   },
 
-  writeLocalFile: function(filePath, content, header) {
+  writeLocalFile: function (filePath, content, header) {
     return util.writeFile(local(filePath), content, header);
   },
 
-  writeFile: function(filePath, content, header) {
+  writeFile: function (filePath, content, header) {
     try {
       if (typeof content == "object") {
         content = JSON.stringify(content, null, 2)
@@ -54,8 +53,8 @@ var util = {
     }
   },
 
-  titleCase: function(str) {
-    return str.split(/_|\//).map(function(val, index) {
+  titleCase: function (str) {
+    return str.split(/_|\//).map(function (val, index) {
       if (val.length) {
         return val[0].toUpperCase() + val.slice(1);
       }
@@ -66,81 +65,66 @@ var util = {
 
   camelCase: _.camelCase,
 
-  getFilePathsRelativeToDir: function(dir) {
-    const files = [];
-    const walker = walk.walk(dir, { followLinks: false });
+  getFilePathsRelativeToDir: async function (dir) {
     if (!util.isDirectory(dir)) {
       return Promise.resolve([]);
     }
 
-    return new Promise(function(resolve, reject) {
-      walker.on('file', function(root, stat, next) {
-        files.push(path.relative(dir, path.join(root, stat.name)));
-        next();
-      });
-
-      walker.on('end', function() {
-        resolve(files);
-      });
-
-      walker.on('errors', function() {
-        reject();
-      });
-    });
+    return await fs.promises.readdir(dir);
   },
 
-  isFile: function(path) {
+  isFile: function (path) {
     var isFile;
     try {
       isFile = fse.statSync(path).isFile();
-    } catch(e) {
+    } catch (e) {
       isFile = false;
     }
 
     return isFile;
   },
 
-  isDirectory: function(path) {
+  isDirectory: function (path) {
     var isDirectory;
     try {
       isDirectory = fse.statSync(path).isDirectory();
-    } catch(e) {
+    } catch (e) {
       isDirectory = false;
     }
 
     return isDirectory;
   },
 
-  isPointer: function(type) {
+  isPointer: function (type) {
     return util.pointerRegex.test(type) || util.doublePointerRegex.test(type);
   },
 
-  isDoublePointer: function(type) {
+  isDoublePointer: function (type) {
     return util.doublePointerRegex.test(type);
   },
 
-  syncDirs: function(fromDir, toDir) {
+  syncDirs: function (fromDir, toDir) {
     let toFilePaths;
     let fromFilePaths;
     return Promise.all([
       util.getFilePathsRelativeToDir(toDir),
       util.getFilePathsRelativeToDir(fromDir)
     ])
-      .then(function(filePaths) {
+      .then(function (filePaths) {
         toFilePaths = filePaths[0];
         fromFilePaths = filePaths[1];
 
         // Delete files that aren't in fromDir
-        return Promise.all(toFilePaths.map(function(filePath) {
+        return Promise.all(toFilePaths.map(function (filePath) {
           if (!util.isFile(path.join(fromDir, filePath))) {
             return fse.remove(path.join(toDir, filePath));
           }
           return Promise.resolve();
         }));
       })
-      .then(function() {
+      .then(function () {
         // Copy files that don't exist in toDir or have different contents
-        return Promise.all(fromFilePaths.map(function(filePath) {
+        return Promise.all(fromFilePaths.map(function (filePath) {
           const toFilePath = path.join(toDir, filePath);
           const fromFilePath = path.join(fromDir, filePath);
           if (!util.isFile(toFilePath) || util.readFile(toFilePath) !== util.readFile(fromFilePath)) {

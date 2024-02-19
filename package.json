@@ -37,29 +37,20 @@
   "engines": {
     "node": ">= 16"
   },
-  "dependencies": {
-    "@axosoft/nan": "^2.18.0-gk.2",
-    "@mapbox/node-pre-gyp": "^1.0.8",
-    "fs-extra": "^7.0.0",
-    "got": "^11.8.6",
-    "json5": "^2.1.0",
-    "lodash": "^4.17.14",
-    "node-gyp": "^10.0.1",
-    "ramda": "^0.25.0",
-    "tar-fs": "^2.1.1"
-  },
   "devDependencies": {
-    "aws-sdk": "^2.1095.0",
-    "cheerio": "^1.0.0-rc.2",
-    "clean-for-publish": "~1.0.2",
-    "combyne": "~0.8.1",
-    "coveralls": "^3.0.2",
-    "istanbul": "^0.4.5",
-    "js-beautify": "~1.5.10",
-    "jshint": "^2.10.0",
-    "lcov-result-merger": "^3.1.0",
-    "mocha": "^5.2.0",
-    "walk": "^2.3.9"
+    "@axosoft/nan": "2.18.0-gk.2",
+    "@mapbox/node-pre-gyp": "^1.0.11",
+    "combyne": "^2.0.0",
+    "fs-extra": "^11.2.0",
+    "got": "^14.2.0",
+    "js-beautify": "^1.15.1",
+    "json5": "^2.2.3",
+    "lodash": "^4.17.21",
+    "node-gyp": "^10.0.1",
+    "tar-fs": "^3.0.5"
+  },
+  "resolutions": {
+    "make-fetch-happen": "^13"
   },
   "binary": {
     "module_name": "nodegit",
@@ -68,20 +59,13 @@
   },
   "scripts": {
     "cov": "npm run cppcov && npm run filtercov && npm run mergecov",
-    "coveralls": "cat ./test/coverage/merged.lcov | coveralls",
     "cppcov": "mkdir -p test/coverage/cpp && ./lcov-1.10/bin/lcov --gcov-tool /usr/bin/gcov-4.9 --capture --directory build/Release/obj.target/nodegit/src --output-file test/coverage/cpp/lcov_full.info",
     "filtercov": "./lcov-1.10/bin/lcov --extract test/coverage/cpp/lcov_full.info $(pwd)/src/* $(pwd)/src/**/* $(pwd)/include/* $(pwd)/include/**/* --output-file test/coverage/cpp/lcov.info && rm test/coverage/cpp/lcov_full.info",
     "generateJson": "node generate/scripts/generateJson",
     "generateMissingTests": "node generate/scripts/generateMissingTests",
     "generateNativeCode": "node generate/scripts/generateNativeCode",
-    "install": "node lifecycleScripts/preinstall && node lifecycleScripts/install",
-    "installDebug": "BUILD_DEBUG=true npm install",
-    "lint": "jshint lib test/tests test/utils lifecycleScripts",
     "mergecov": "lcov-result-merger 'test/**/*.info' 'test/coverage/merged.lcov' && ./lcov-1.10/bin/genhtml test/coverage/merged.lcov --output-directory test/coverage/report",
-    "mocha": "mocha --expose-gc test/runner test/tests --timeout 15000",
-    "mochaDebug": "mocha --expose-gc --inspect-brk test/runner test/tests --timeout 15000",
-    "postinstall": "node lifecycleScripts/postinstall",
-    "rebuild": "node generate && node-gyp configure build",
+    "rebuild": "node generate && CC=clang CXX=clang++ LINK=clang++ node-gyp configure build",
     "rebuildDebug": "node generate && node-gyp configure --debug build",
     "recompile": "node-gyp configure build",
     "recompileDebug": "node-gyp configure --debug build",
