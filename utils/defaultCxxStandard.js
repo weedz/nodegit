@@ -12,7 +12,7 @@ if (targetSpecified) {
 }
 
 const defaultCxxStandard = isNode18OrElectron20AndUp
-  ? '17'
+  ? '20'
   : '14';
 
 process.stdout.write(defaultCxxStandard);
