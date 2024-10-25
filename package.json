@@ -39,7 +39,6 @@
   },
   "devDependencies": {
     "@axosoft/nan": "2.22.0-gk.1",
-    "@mapbox/node-pre-gyp": "^1.0.11",
     "combyne": "^2.0.0",
     "fs-extra": "^11.2.0",
     "js-beautify": "^1.15.1",
