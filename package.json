@@ -44,7 +44,7 @@
     "json5": "^2.2.3",
     "lodash": "^4.17.21",
     "nan": "^2.22.0",
-    "node-gyp": "^10.2.0",
+    "node-gyp": "^10.3.1",
     "tar-fs": "^3.0.6"
   },
   "resolutions": {
@@ -70,5 +70,5 @@
     "test": "npm run lint && node --expose-gc test",
     "xcodeDebug": "node-gyp configure -- -f xcode"
   },
-  "packageManager": "pnpm@9.12.0+sha512.4abf725084d7bcbafbd728bfc7bee61f2f791f977fd87542b3579dcb23504d170d46337945e4c66485cd12d588a0c0e570ed9c477e7ccdd8507cf05f3f92eaca"
+  "packageManager": "pnpm@9.14.4+sha512.c8180b3fbe4e4bca02c94234717896b5529740a6cbadf19fa78254270403ea2f27d4e1d46a08a0f56c89b63dc8ebfd3ee53326da720273794e6200fcf0d184ab"
 }
