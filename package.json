@@ -39,13 +39,13 @@
   },
   "devDependencies": {
     "combyne": "^2.0.0",
-    "fs-extra": "^11.2.0",
+    "fs-extra": "^11.3.0",
     "js-beautify": "^1.15.1",
     "json5": "^2.2.3",
     "lodash": "^4.17.21",
     "nan": "^2.22.0",
-    "node-gyp": "^10.2.0",
-    "tar-fs": "^3.0.6"
+    "node-gyp": "^11.0.0",
+    "tar-fs": "^3.0.8"
   },
   "resolutions": {
     "make-fetch-happen": "^13"
@@ -70,5 +70,5 @@
     "test": "npm run lint && node --expose-gc test",
     "xcodeDebug": "node-gyp configure -- -f xcode"
   },
-  "packageManager": "pnpm@9.12.0+sha512.4abf725084d7bcbafbd728bfc7bee61f2f791f977fd87542b3579dcb23504d170d46337945e4c66485cd12d588a0c0e570ed9c477e7ccdd8507cf05f3f92eaca"
+  "packageManager": "pnpm@9.15.4+sha512.b2dc20e2fc72b3e18848459b37359a32064663e5627a51e4c74b2c29dd8e8e0491483c3abb40789cfd578bf362fb6ba8261b05f0387d76792ed6e23ea3b1b6a0"
 }
