@@ -64,7 +64,7 @@
     "generateMissingTests": "node generate/scripts/generateMissingTests",
     "generateNativeCode": "node generate/scripts/generateNativeCode",
     "mergecov": "lcov-result-merger 'test/**/*.info' 'test/coverage/merged.lcov' && ./lcov-1.10/bin/genhtml test/coverage/merged.lcov --output-directory test/coverage/report",
-    "rebuild": "node generate && CC=clang CXX=clang++ LINK=clang++ node-gyp configure build",
+    "rebuild": "node generate && CC=clang CXX=clang++ LINK=clang++ LD=clang node-gyp configure build",
     "rebuildDebug": "node generate && node-gyp configure --debug build",
     "recompile": "node-gyp configure build",
     "recompileDebug": "node-gyp configure --debug build",
