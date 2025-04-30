@@ -315,6 +315,12 @@ var Helpers = {
       }
     }
 
+    // Somewhere the warning for `-Wformat-security` becomes an error.
+    // Fix the warning by treating the `fmt` arg as `printf("%s", fmt)`.
+    if (arg.name === "fmt" && arg.type === "const char *") {
+      arg.isFmtArg = true;
+    }
+
     _.merge(arg, argOverrides);
   },
 
