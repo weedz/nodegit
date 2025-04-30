@@ -61,6 +61,9 @@ NAN_METHOD({{ cppClassName }}::{{ cppFunctionName }}) {
         {%elsif arg.isReturn %}
           {{ arg.name }}
         {%else%}
+          {%if arg.isFmtArg %}
+          "%s",
+          {%endif%}
           from_{{ arg.name }}
         {%endif%}
         {%if not arg.lastArg %},{%endif%}
