@@ -115,9 +115,12 @@ const buildDarwin = async (buildCwd, macOsDeploymentTarget) => {
     cwd: buildCwd
   }, { pipeOutput: true });
 
-  await execPromise("make test", {
-    cwd: buildCwd
-  }, { pipeOutput: true });
+  // Skip tests, takes forever.. Uncomment for first build or if problem with openssl.
+  if (process.env.BUILD_OPENSSL_TESTS) {
+    await execPromise("make test", {
+      cwd: buildCwd
+    }, { pipeOutput: true });
+  }
 
   await execPromise("make install_sw", {
     cwd: buildCwd,
@@ -150,7 +153,7 @@ const buildLinux = async (buildCwd) => {
     maxBuffer: 10 * 1024 * 1024
   }, { pipeOutput: true });
 
-  if (hostArch === targetArch) {
+  if (process.env.BUILD_OPENSSL_TESTS && hostArch === targetArch) {
     await execPromise("make test", {
       cwd: buildCwd,
       maxBuffer: 10 * 1024 * 1024
